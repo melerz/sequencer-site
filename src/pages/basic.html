@@ -31,12 +31,12 @@
 <div class="container">
     <br>
     <!-- The fileinput-button span is used to style the file input field as button -->
-    <span class="btn btn-success fileinput-button">
+    <span class="btn btn-success  btn-lg fileinput-button">
         <i class="glyphicon glyphicon-plus"></i>
-        <span>Select files...</span>
+        <span>Upload your CSV files</span>
     </br>
         <!-- The file input field used as target for the file upload widget -->
-        <input id="fileupload" type="file" name="files[]" multiple>Upload your CSV</input>
+        <input id="fileupload" type="file" name="files[]" multiple></input>
     </span>
     <br>
     <br>
@@ -50,17 +50,7 @@
     <div class="panel panel-default">
     </div>
 
-    <div class="panel panel-primary">
-        <div class="panel-heading">
-            heading
-        </div>
-        <div class="panel-body">
-            body
-        </div>
-        <div class="panel-footer">
-            footer
-        </div>
-    </div>
+    <button id="run" type="button" class="btn btn-primary btn-lg">Run Me!</button>
 </div>
 <script src="../bower_components/jquery/dist/jquery.min.js"></script>
 <!-- The jQuery UI widget factory, can be omitted if jQuery UI is already included -->
@@ -69,34 +59,121 @@
 <script src="../js/jquery.iframe-transport.js"></script>
 <!-- The basic File Upload plugin -->
 <script src="../js/jquery.fileupload.js"></script>
+<!-- The basic File Upload plugin -->
+<script src="../js/ICanHaz.js"></script>
+
+<script id="csvcontainer" type="text/html">
+    <div id="{{id}}" class="panel panel-primary">
+        <div class="panel-heading">
+            {{header}}
+        </div>
+        <div class="panel-body">
+            Read:{{reads}}
+            <br />
+            Indexes: {{indexes}}
+        </div>
+    </div>
+</script>
+
+
 <!-- Bootstrap JS is not required, but included for the responsive demo navigation -->
 <script>
-/*jslint unparam: true */
-/*global window, $ */
-$(function () {
-    'use strict';
-    // Change this to the location of your server-side upload handler:
-    var url = 'http://132.65.120.206:8080/illuminaapi/illumina/uploadcsv/'
-    $('#fileupload').fileupload({
-        url: url,
-        dataType: 'json',
-        done: function (e, data) {
-            console.log(data)
-            $.each(data.result.files, function (index, file) {
-                $('<p/>').append(file.name + "<br />" + "reads:" + file.configuration["reads"]+"<br />"
-                         +" index:" + file.configuration["indexes"]).appendTo('#files');
+    /*jslint unparam: true */
+    /*global window, $ */
+    $(function () {
+
+        var csv_objects=[];
+
+        $("#run").click(csv_objects,runAnalyzes);
+
+        'use strict';
+        $('#fileupload').fileupload({
+            url: 'http://132.65.120.206:8080/illuminaapi/illumina/uploadcsv/',
+            dataType: 'json',
+            done: function (e, data){
+                    $.each(data.result.files, function (index, file) {
+                        var csv_data = {
+                            id: "analyze-"+file.name.split(".")[0],
+                            header: file.name,
+                            reads: file.configuration["reads"],
+                            indexes: file.configuration["indexes"]
+                          }; //close csv_data
+
+                        var csv = ich.csvcontainer(csv_data);
+                        $(".container").append(csv);
+                        csv_objects.push(file);
+                     }); //close foreach function
+            },//close done function clalback, 
+            progressall: function (e, data) {
+                var progress = parseInt(data.loaded / data.total * 100, 10);
+                $('#progress .progress-bar').css(
+                    'width',
+                    progress + '%'
+                );
+            }//close progressall callback
+        }).prop('disabled', !$.support.fileInput)
+            .parent().addClass($.support.fileInput ? undefined : 'disabled');
+
+        function runAnalyzes(e){
+           // console.log("hey")
+            var jsonData={};
+            jsonData={
+                        "run_name":"hardcoded_name",
+                        "fastq":"fastq_folder_hardcoded",
+                        "experiments":[]
+                    };
+
+            e.data.forEach(function (csv_obj){
+                console.log(csv_obj);
+                jsonData["experiments"].push(getExperimentConfiguration(csv_obj));
             });
-        },
-        progressall: function (e, data) {
-            var progress = parseInt(data.loaded / data.total * 100, 10);
-            $('#progress .progress-bar').css(
-                'width',
-                progress + '%'
-            );
+
+            console.log(jsonData)
+
         }
-    }).prop('disabled', !$.support.fileInput)
-        .parent().addClass($.support.fileInput ? undefined : 'disabled');
-});
+
+        function getExperimentConfiguration(csv_obj){
+            var exp_data={
+                "name":csv_obj.name,
+                "csv_file":csv_obj.name,
+                "configuration":{}
+            }
+            var count = csv_obj.configuration.reads.length+csv_obj.configuration.indexes.length;
+            var i;
+            var readsLocation=0;
+            var indexesLocation=0;
+            for(i=1;i<=count;i++)
+            {
+                if(i % 2 == 0) //even=index. odd=read
+                {//index
+
+                    var length = csv_obj.configuration.indexes[indexesLocation++].length.toString();
+                    var read = {
+
+                                "NumCycles":length,
+                                "IsIndexedRead":"no"
+                                };
+                    
+                }
+                else
+                {//read
+                    var length = csv_obj.configuration.reads[readsLocation++].toString();
+                    var read = {
+
+
+                                "NumCycles":length,
+                                "IsIndexedRead":"yes"
+                            };
+                }
+                var readNumber = "R" + i;
+                exp_data["configuration"][readNumber]=read;
+            }
+        return exp_data;        
+        }
+
+    }); //close onLoad function
 </script>
 </body> 
 </html>
+
+

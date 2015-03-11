@@ -439,7 +439,7 @@
         },
 
         _initXHRData: function (options) {
-            console.log(options)
+           // console.log(options)
             var that = this,
                 formData,
                 file = options.files[0],
