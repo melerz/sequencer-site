@@ -63,18 +63,48 @@
 <script src="../js/ICanHaz.js"></script>
 
 <script id="csvcontainer" type="text/html">
-    <div id="{{id}}" class="panel panel-primary">
+    <div id="{{id}}" class="panel panel-primary" data-expname={{header}}>
         <div class="panel-heading">
-            {{header}}
+            <label>Experiment name: {{header}}</label>
         </div>
         <div class="panel-body">
-            Read:{{reads}}
-            <br />
-            Indexes: {{indexes}}
+            <div id="config-container">
+                {{>runconfig}}
+            </div>
         </div>
     </div>
 </script>
 
+
+<script id="runconfig" class="partial" type="text/html">
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Read/Index</th>
+                    <th>Value</th>
+                    <th>Position</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#reads}}
+                <tr data-type="read">
+                    <td>Read</td>
+                    <td>{{.}}</td>
+                    <td class="col-xs-1"><input class="form-control"></td>
+                </tr>
+                {{/reads}}
+                {{#indexes}}
+                <tr data-type="index">
+                    <td>Index</td>
+                    <td>{{.}}</td>
+                    <td class="col-xs-1"><input class="form-control"></td>
+                </tr>
+                {{/indexes}}
+            </tbody>
+        </table>
+   </div>
+</script>
 
 <!-- Bootstrap JS is not required, but included for the responsive demo navigation -->
 <script>
@@ -89,19 +119,20 @@
         'use strict';
         $('#fileupload').fileupload({
             url: 'http://132.65.120.206:8080/illuminaapi/illumina/uploadcsv/',
+            //url: 'http://132.65.120.206:8080/illuminaapi/illumina/uploadcsv/',
             dataType: 'json',
             done: function (e, data){
                     $.each(data.result.files, function (index, file) {
                         var csv_data = {
                             id: "analyze-"+file.name.split(".")[0],
-                            header: file.name,
+                            header: file.name.split(".")[0],
                             reads: file.configuration["reads"],
-                            indexes: file.configuration["indexes"]
+                            indexes: file.configuration["indexes"],
                           }; //close csv_data
 
                         var csv = ich.csvcontainer(csv_data);
                         $(".container").append(csv);
-                        csv_objects.push(file);
+                        csv_objects.push(csv_data);
                      }); //close foreach function
             },//close done function clalback, 
             progressall: function (e, data) {
@@ -133,41 +164,39 @@
         }
 
         function getExperimentConfiguration(csv_obj){
+
             var exp_data={
-                "name":csv_obj.name,
-                "csv_file":csv_obj.name,
+                "name":csv_obj.header,
+                "csv_file":csv_obj.header,
                 "configuration":{}
             }
-            var count = csv_obj.configuration.reads.length+csv_obj.configuration.indexes.length;
-            var i;
-            var readsLocation=0;
-            var indexesLocation=0;
-            for(i=1;i<=count;i++)
-            {
-                if(i % 2 == 0) //even=index. odd=read
-                {//index
+            $.each(csv_obj.reads, function(idx, val){
 
-                    var length = csv_obj.configuration.indexes[indexesLocation++].length.toString();
-                    var read = {
+                var read = {
 
-                                "NumCycles":length,
+                                "NumCycles":val,
                                 "IsIndexedRead":"no"
-                                };
-                    
-                }
-                else
-                {//read
-                    var length = csv_obj.configuration.reads[readsLocation++].toString();
-                    var read = {
 
-
-                                "NumCycles":length,
-                                "IsIndexedRead":"yes"
                             };
-                }
-                var readNumber = "R" + i;
+                var readNumber = $($("div[data-expname="+exp_data.name+"] tr[data-type=read] input")[idx]).
+                                        val();
                 exp_data["configuration"][readNumber]=read;
-            }
+            })
+
+            $.each(csv_obj.indexes, function(idx, val){
+
+                var index = {
+
+                                "NumCycles":val,
+                                "IsIndexedRead":"yes"
+
+                            };
+
+                var readNumber = $($("div[data-expname="+exp_data.name+"] tr[data-type=index] input")[idx]).
+                                        val();
+                exp_data["configuration"][readNumber]=index;
+            })            
+
         return exp_data;        
         }
 
