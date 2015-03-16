@@ -51,6 +51,8 @@
     </div>
 
     <button id="run" type="button" class="btn btn-primary btn-lg">Run Me!</button>
+    <div id="experiments">
+    </div>
 </div>
 <script src="../bower_components/jquery/dist/jquery.min.js"></script>
 <!-- The jQuery UI widget factory, can be omitted if jQuery UI is already included -->
@@ -111,7 +113,7 @@
     /*jslint unparam: true */
     /*global window, $ */
     $(function () {
-
+       
         var csv_objects=[];
 
         $("#run").click(csv_objects,runAnalyzes);
@@ -124,14 +126,16 @@
             done: function (e, data){
                     $.each(data.result.files, function (index, file) {
                         var csv_data = {
+
                             id: "analyze-"+file.name.split(".")[0],
                             header: file.name.split(".")[0],
                             reads: file.configuration["reads"],
-                            indexes: file.configuration["indexes"],
+                            indexes: file.configuration["indexes"]
+
                           }; //close csv_data
 
                         var csv = ich.csvcontainer(csv_data);
-                        $(".container").append(csv);
+                        $(csv).hide().appendTo("#experiments").fadeIn(500);
                         csv_objects.push(csv_data);
                      }); //close foreach function
             },//close done function clalback, 
