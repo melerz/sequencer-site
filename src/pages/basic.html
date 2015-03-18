@@ -63,6 +63,7 @@
 <script src="../js/jquery.fileupload.js"></script>
 <!-- The basic File Upload plugin -->
 <script src="../js/ICanHaz.js"></script>
+<script src="../js/config.js"></script>
 
 <script id="csvcontainer" type="text/html">
     <div id="{{id}}" class="panel panel-primary" data-expname={{header}}>
@@ -114,17 +115,23 @@
     /*global window, $ */
     $(function () {
        
+
+/*        $.fn.hasExtension = function(exts) {
+                    return (new RegExp('(' + exts.join('|').replace(/\./g, '\\.') + ')$')).
+                                                                                test($(this).val());
+        }*/
         var csv_objects=[];
 
         $("#run").click(csv_objects,runAnalyzes);
 
         'use strict';
         $('#fileupload').fileupload({
-            url: 'http://132.65.120.206:8080/illuminaapi/illumina/uploadcsv/',
+            url: 'http://'+config['hostname']+'/illuminaapi/illumina/uploadcsv/',
             //url: 'http://132.65.120.206:8080/illuminaapi/illumina/uploadcsv/',
             dataType: 'json',
             done: function (e, data){
                     $.each(data.result.files, function (index, file) {
+                        console.log(file)
                         var csv_data = {
 
                             id: "analyze-"+file.name.split(".")[0],
@@ -137,8 +144,20 @@
                         var csv = ich.csvcontainer(csv_data);
                         $(csv).hide().appendTo("#experiments").fadeIn(500);
                         csv_objects.push(csv_data);
-                     }); //close foreach function
+                     }); //close each function
             },//close done function clalback, 
+            error: function(e,data){
+                
+                $.each($("#fileupload").prop("files"), function (index, file) {
+
+                        var divElem = $("<div></div>")
+                        divElem.attr("class","alert alert-danger").text("Error! "+file.name+"is not a .csv file").
+                                hide().appendTo('#experiments').fadeIn('slow', function() {
+                                    divElem.fadeOut(4000)
+                                });
+                    
+                })//close each function
+            },//close error callback
             progressall: function (e, data) {
                 var progress = parseInt(data.loaded / data.total * 100, 10);
                 $('#progress .progress-bar').css(

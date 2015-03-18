@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title></title>
+	<link rel="stylesheet" href="../bower_components/bootstrap/dist/css/bootstrap.min.css">
+</head>
+<body>
+
+<div class="container">
+	<h1>Run List</h1>
+	<hr />
+	<div class="page2">
+
+	</div>
+</div>
+
+<script type="text/template" id='run-list-template'>
+	<a href="#/add" class="btn btn-primary">New Run</a>
+	<hr />
+	<table class="table table-hover">
+		<thead>
+			<th>ID</th>
+			<th>Name</th>
+			<th>illumina data</th>
+		</thead>
+		<tbody>
+			<% _.each(runs2,function(run){ %>
+				<tr>
+					<td><%=run.get("id")%></td>
+					<td><%=run.get("name")%></td>
+					<td><%=run.get("illumina_id")%></td>
+					<td><a href="#/edit/<%=run.id%>"><button class="editButton">Edit</button</a></td>			
+				</tr>
+			<%})%>
+		</tbody>
+	</table>
+</script>
+
+<script type="text/template" id="add-run-template">
+	<form class="form-run-add">
+		<legend><%= run ? "Update Run" : 'Create Run' %></legend>
+		<label>Name</label>
+		<input type="text" name="name" value="<%=run ? run.get('name') : ''%>"/>
+		<label>Illumina Data</label>
+		<input type="text" name="illumina_id" value="<%=run ? run.get('illumina_id') : ''%>"/>
+		<hr />
+		<button type="submit" class="btn btn-primary"><%=run ? 'Update' : 'Add' %></button>
+		<% if(run){ %>
+			<input type=hidden name="id" value="<%=run.id%>"</input>
+			<button class="deleteButton btn btn-danger">Delete</button>
+		<%};%>
+	</form>
+</script>
+<script src="../bower_components/jquery/dist/jquery.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.2/js/bootstrap.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.2/underscore-min.js"></script>
+<script src="../js/backbone-min.js"></script>
+
+
+<script>
+
+$.ajaxPrefilter(function( options, originalOptions, jqXHR ) {
+  options.url= "http://132.65.120.148:8080/illuminaapi" + options.url;
+});
+
+$.fn.serializeObject = function()
+{
+    var o = {};
+    var a = this.serializeArray();
+    $.each(a, function() {
+        if (o[this.name] !== undefined) {
+            if (!o[this.name].push) {
+                o[this.name] = [o[this.name]];
+            }
+            o[this.name].push(this.value || '');
+        } else {
+            o[this.name] = this.value || '';
+        }
+    });
+    return o;
+};
+
+var _sync = Backbone.sync;
+Backbone.sync = function(method, model, options){
+
+    // Add trailing slash to backbone model views
+    var _url = _.isFunction(model.url) ?  model.url() : model.url;
+    _url += _url.charAt(_url.length - 1) == '/' ? '' : '/';
+
+    options = _.extend(options, {
+        url: _url
+    });
+
+    return _sync(method, model, options);
+};
+
+var Run = Backbone.Model.extend({
+	urlRoot:'/run/'
+});
+var Runs = Backbone.Collection.extend({
+	url:'/run/'
+});
+
+
+var RunList = Backbone.View.extend({
+	el: ".page2",
+	render: function(){
+		var that = this;
+		var runs = new Runs(); //Bind the view to the collection object
+		runs.fetch({
+			success: function(runsFromServer){
+				var compiledTemplate = _.template($("#run-list-template").html());
+				that.$el.html(compiledTemplate({runs2:runsFromServer.models}))		
+			}//close of success callback
+		});//close of runs.fetch
+	}
+});
+
+var AddRun = Backbone.View.extend({
+	el:".page2",
+	render: function(options){
+		if(options.id)
+		{
+			//GET SPECIFIC DATA
+			var that=this;
+			that.currentRun = new Run({id:options.id});
+			that.currentRun.fetch({
+				success: function(run){
+				console.log(run)
+				var compiledTemplate = _.template($("#add-run-template").html());
+				that.$el.html(compiledTemplate({run:run}));
+				}
+			});
+
+		}else{
+			var compiledTemplate = _.template($("#add-run-template").html());
+			this.$el.html(compiledTemplate({run:null}));
+		}
+	},//close of render function
+	events:{
+		'click .deleteButton' : 'deleteRun',
+		'submit .form-run-add': 'handleForm'
+	}, //close events 
+	handleForm: function(ev){
+		ev.preventDefault();
+		var obj = $(ev.currentTarget).serializeObject();
+		console.log(obj);
+		var run = new Run(); //our model
+		run.save(obj,{
+			success: function(run){
+				console.log("yay! saved!");
+				router.navigate('',{'trigger':true})
+			}
+		});
+		return false;
+	}, //close handleForm function
+	deleteRun:function(env){
+		this.currentRun.destroy({
+			success: function(){
+				router.navigate('',{'trigger':true})
+			}
+		});
+		return false;
+	}
+});
+var Router = Backbone.Router.extend({
+	routes:{
+		'':'home',
+		'add':'add',
+		'edit/:id':'edit'
+	}
+});
+
+var router = new Router();
+var runList = new RunList();
+var addRun = new AddRun();
+
+router.on('route:home',function(){
+	console.log("we have loaded the gome page");
+	runList.render();
+});
+
+router.on('route:add',function(){
+	console.log("we have loaded the add page");
+	addRun.render({});
+
+});
+
+router.on('route:edit',function(id){
+	addRun.render({id:id});
+});
+
+Backbone.history.start();
+</script>
+</body>
+
+</html>

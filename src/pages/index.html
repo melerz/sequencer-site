@@ -486,10 +486,11 @@
 
     <!-- Custom Theme JavaScript -->
     <script src="../dist/js/sb-admin-2.js"></script>
+    <script src="../js/config.js"></script>
 
     <script>
         $(document).ready(function(){
-            var seqApi = "http://132.65.120.206:8080/illuminaapi/illumina/"
+            var seqApi = 'http://'+config['hostname']+'/illuminaapi/illumina/'
             var $select = $('#nisoyselect')
             $.getJSON(seqApi).done(function (data){
                 $.each(data,function(i,item){
